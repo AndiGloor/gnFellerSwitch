@@ -1,5 +1,5 @@
 # gnFellerSwitch
-Library for using a Feller Feller EDIZIOdue electronic Switch.
+Library for using a Feller EDIZIOdue electronic Switch.
 
 The Switch is a nice programmable solution that matches into existing EDIZIOdue instalations, as you find many in Switzerland.
 Because you need a Switch from Feller and you most likley live in Switzerland when you like to use such a Device, the main part of the documentation is in German ([See LIESMICH.md](./LIESMICH.md)). This english Version contains just the most important links. But the code itself is documented in English, so you shoud be able to start also in English.
