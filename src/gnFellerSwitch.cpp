@@ -6,7 +6,8 @@
  *  
  *  Tested with Arduino UNO and gnFellerTaster PCB (compatible with Arduino Uno).
  *  
- *  2018-07-21  V1.0.1    Andreas Gloor            Initial Version
+ *  2018-09-08  V1.1.2    Andreas Gloor            Reset ErrorCount after Init
+ *  2018-07-21  V1.1.1    Andreas Gloor            Initial Version
  *  
  *  Feller and EDIZIOdue are Trademarks of Feller AG, http://www.feller.ch
  *  
@@ -134,6 +135,7 @@ bool gnFellerSwitch::begin(uint32_t baudRate, uint32_t initialBaudRate) {
 	}
 	
 	_setFlag(GNFS_FLAG_Initialized);																									// Store the successful init and return ok
+	_errorCount = 0;
 	return true;
 }
 

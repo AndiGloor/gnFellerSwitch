@@ -6,7 +6,8 @@
  *  
  *  Tested with Arduino UNO and gnFellerTaster PCB (compatible with Arduino Uno).
  *  
- *  2018-07-21  V1.0.1    Andreas Gloor            Initial Version
+ *  2018-09-08  V1.1.2    Andreas Gloor            Reset ErrorCount after Init
+ *  2018-07-21  V1.1.1    Andreas Gloor            Initial Version
  *  
  *  Feller and EDIZIOdue are Trademarks of Feller AG, http://www.feller.ch
  *  
@@ -229,9 +230,7 @@ class gnFellerSwitch {
 		uint8_t _bitCount(uint8_t bit);
 		uint8_t _calculateFrameHeader(uint8_t payloadBytesCount, _fellerService service);
 		uint16_t _calculateInterByteTimeout() {return ((100000ul / _baudRate) + 1);};
-		// I'v asked Feller about the maximum pause time between a Service-Request and a Response
-		// As long as i dont have any answer, the code assumes 10 Inter-Byte-Timeouts
-		uint16_t _calculateInterFrameTimeout() {return (_calculateInterByteTimeout() * 10);};
+		uint16_t _calculateInterFrameTimeout() {return (_calculateInterByteTimeout() * 2);};	// As told by MS from Feller
 		bool _checkCts();
 		bool _checkFrameHeaderParity(uint8_t frameHeader);
 		void _handleIndicationFrame(uint8_t indicationService);
