@@ -6,6 +6,7 @@ getLedColor	KEYWORD2
 getLedState	KEYWORD2
 setLed	KEYWORD2
 setLedBrightness	KEYWORD2
+setLedDisplayMode	KEYWORD2
 getSwitchFirmwareVersion	KEYWORD2
 getSwitchLedCount	KEYWORD2
 getSwitchPushButtonCount	KEYWORD2
@@ -39,6 +40,10 @@ ledState	LITERAL1
 off	LITERAL1
 on	LITERAL1
 blinking	LITERAL1
+ledDisplayMode	LITERAL1
+full	LITERAL1
+one	LITERAL1
+dark	LITERAL1
 rawButtonHandlerCallback	LITERAL1
 singleButtonHandlerCallback	LITERAL1
 gnFellerSwitchError	LITERAL1
