@@ -6,6 +6,7 @@
  *  
  *  Tested with Arduino UNO and gnFellerTaster PCB (compatible with Arduino Uno).
  *  
+ *  2019-07-21	V1.3.1    Andreas Gloor            Implements: LedDisplay
  *  2018-09-08  V1.1.2    Andreas Gloor            Reset ErrorCount after Init
  *  2018-07-21  V1.1.1    Andreas Gloor            Initial Version
  *  
@@ -13,7 +14,7 @@
  *  
  *  MIT License
  *  
- *  Copyright (c) 2018 Andreas Gloor
+ *  Copyright (c) 2018-19 Andreas Gloor
  *  
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -50,18 +51,19 @@
 
 
 // Definitions
-#define GNFS_SVC_SetLedState_Variant1							0x11
-#define GNFS_SVC_SetLedState_Variant2							0x12
-#define GNFS_SVC_SetLedBrightness_Variant1				0x11
-			
-#define GNFS_TX_BUFFERSIZE												7
-#define GNFS_RX_BUFFERSIZE												7
+#define GNFS_SVC_SetLedState_Variant1										0x11
+#define GNFS_SVC_SetLedState_Variant2										0x12
+#define GNFS_SVC_SetLedBrightness_Variant1									0x11
 
-#define GNFS_FLAG_Initialized											0
-#define GNFS_FLAG_RequestUpdateForLedState				1
-#define GNFS_FLAG_RequestUpdateForLedBrightness		2
-#define GNFS_FLAG_ButtonHandler_Raw_Enabled				3
-#define GNFS_FLAG_ButtonHandler_Single_Enabled		4
+#define GNFS_TX_BUFFERSIZE													7
+#define GNFS_RX_BUFFERSIZE													7
+
+#define GNFS_FLAG_Initialized												0
+#define GNFS_FLAG_RequestUpdateForLedState									1
+#define GNFS_FLAG_RequestUpdateForLedBrightness								2
+#define GNFS_FLAG_ButtonHandler_Raw_Enabled									3
+#define GNFS_FLAG_ButtonHandler_Single_Enabled								4
+#define GNFS_FLAG_LedDisplayMode_ButtonPressed_TimerActive					5
 
 
 
@@ -87,10 +89,13 @@
 //#define GNFS_DEBUG_SERIAL
 //#define GNFS_DEBUG_DIGITAL
 //#define GNFS_DEBUG_DIGITAL_ERRORMORSE
-#define GNFS_DEBUG_SERIAL_PORT									Serial
-#define GNFS_DEBUG_DIGITAL_PIN_ERR							5
-#define GNFS_DEBUG_DIGITAL_PIN_ACT							6
-#define GNFS_DEBUG_DIGITAL_PIN_DET							7
+#define GNFS_DEBUG_SERIAL_PORT												Serial
+#define GNFS_DEBUG_DIGITAL_PIN_ERR											5
+#define GNFS_DEBUG_DIGITAL_PIN_ACT											6
+#define GNFS_DEBUG_DIGITAL_PIN_DET											7
+#ifdef GNFS_DEBUG_SERIAL
+	#warning gnFellerSwitch Library: DEBUG Mode enabled! Serial: Assure to initialize Port before initializing the Library).
+#endif
 
 
 
@@ -109,33 +114,35 @@ class gnFellerSwitch {
 		
 		// Services ----------------------------------------------------------------------------------------------------------
 		enum buttonPosition : uint8_t {
-			T1 																															= 1,
-			T2 																															= 2,
-			T3 																															= 3,
-			T4 																															= 4,
-			T5 																															= 5,
-			T6 																															= 6,
-			T7 																															= 7,
-			T8 																															= 8};
+			T1 																= 1,
+			T2 																= 2,
+			T3 																= 3,
+			T4 																= 4,
+			T5 																= 5,
+			T6 																= 6,
+			T7 																= 7,
+			T8 																= 8};
 		enum ledColor : uint8_t {
-			red 																														= 0b001001,
-			green 																													= 0b010010,
-			blue 																														= 0b100100
-		};
+			red 															= 0b001001,
+			green 															= 0b010010,
+			blue 															= 0b100100};
 		enum ledPosition : uint8_t {
-			L1 																															= 0,
-			L2 																															= 1,
-			L3 																															= 2,
-			L4 																															= 3,
-			L5 																															= 4,
-			L6 																															= 5,
-			L7 																															= 6,
-			L8 																															= 7};
+			L1 																= 0,
+			L2 																= 1,
+			L3 																= 2,
+			L4 																= 3,
+			L5 																= 4,
+			L6 																= 5,
+			L7 																= 6,
+			L8 																= 7};
 		enum ledState : uint8_t {
-			off 																														= 0b000000,
-			on 																															= 0b000111,
-			blinking 																												= 0b111000
-		};
+			off 															= 0b000000,
+			on 																= 0b000111,
+			blinking 														= 0b111000};
+		enum ledDisplayMode : uint8_t {
+			full															= 0,
+			one																= 1,
+			dark															= 2};
 		typedef void (*rawButtonHandlerCallback) (uint8_t rawButtonState);
 		typedef void (*singleButtonHandlerCallback) (uint8_t buttonNumber, bool buttonState);
 		bool attachButtonHandler(rawButtonHandlerCallback rawButtonHandler);
@@ -147,6 +154,8 @@ class gnFellerSwitch {
 		void setLed(ledPosition pos, ledState state) {setLed(pos, state, red);};
 		void setLed(ledPosition pos, ledState state, ledColor color);
 		void setLedBrightness(uint8_t brightness);
+		void setLedDisplayMode(ledDisplayMode displayMode) {return setLedDisplayMode(displayMode, 0);};
+		void setLedDisplayMode(ledDisplayMode displayMode, uint8_t onSeconds);
 		
 
 		
@@ -157,21 +166,20 @@ class gnFellerSwitch {
 		
 		// Error Handling ----------------------------------------------------------------------------------------------------
 		enum gnFellerSwitchError : uint8_t {
-			errNone																													= 0x00,
-			errInitInvalidBaudrate																					= 0x10,
-			errInitResetFellerSwitchFailed																	= 0x11,
-			errInitSetSystemSetingsRequestFailed														= 0x12,
-			errInitGetSystemInfoFailed																			= 0x13,
-			errInitSwitchFirmwareToLow																			= 0x14,
-			errInitSwitchHardwareUnknown																		= 0x15,
-			errNotInitializedOrInitFailed																		= 0x20,
-			errAnswerFromFellerSwitchInvalid																= 0x21,
-			errTimeoutWaitingForFrameFromFellerSwitch												= 0x22,
-			errTimeoutWaitingForFrameHeaderFromFellerSwitch									= 0x23,
-			errTimeoutWaitingForNextByteFromFellerSwitch										= 0x24,
-			errUnexpectedOrCorruptedByteReceivedWhileFrameHeaderExpected		= 0x25,
-			errUnexpectedIndicationFrameReceived														= 0x30
-		};
+			errNone															= 0x00,
+			errInitInvalidBaudrate											= 0x10,
+			errInitResetFellerSwitchFailed									= 0x11,
+			errInitSetSystemSetingsRequestFailed							= 0x12,
+			errInitGetSystemInfoFailed										= 0x13,
+			errInitSwitchFirmwareToLow										= 0x14,
+			errInitSwitchHardwareUnknown									= 0x15,
+			errNotInitializedOrInitFailed									= 0x20,
+			errAnswerFromFellerSwitchInvalid								= 0x21,
+			errTimeoutWaitingForFrameFromFellerSwitch						= 0x22,
+			errTimeoutWaitingForFrameHeaderFromFellerSwitch					= 0x23,
+			errTimeoutWaitingForNextByteFromFellerSwitch					= 0x24,
+			errUnexpectedOrCorruptedByteReceivedWhileFrameHeaderExpected	= 0x25,
+			errUnexpectedIndicationFrameReceived							= 0x30};
 		uint8_t getErrorCounter();
 		gnFellerSwitchError getLastError();
 		uint8_t	getLastSwitchControllerError();
@@ -181,50 +189,48 @@ class gnFellerSwitch {
 				
 	private:
 		// Constructor and Begin ---------------------------------------------------------------------------------------------
-		uint32_t										_baudRate;
-		HardwareSerial*							_hwStream;
-    Stream*											_stream;
-		SoftwareSerial*							_swStream;
+		uint32_t _baudRate;
+		HardwareSerial* _hwStream;
+    	Stream* _stream;
+		SoftwareSerial* _swStream;
 		uint8_t _getFellerBaudrateFlag(uint32_t baudRate);
 		
 		
 		// Communication Handling --------------------------------------------------------------------------------------------
 		enum _fellerService : uint8_t {
-			noServiceOrReset																								= 0x00,
-			setSystemSettings_request																				= 0x10,
-			setSystemSettings_confirm																				= 0x11,
-			getSystemSettings_request																				= 0x12,
-			getSystemSettings_confirm																				= 0x13,
-			getSystemState_request																					= 0x18,
-			getSystemState_confirm																					= 0x19,
-			systemState_indication																					= 0x1A,
-			getSystemInfo_request																						= 0x1C,
-			getSystemInfo_confirm																						= 0x1D,
-			setLedState_request																							= 0x30,
-			setLedState_confirm																							= 0x31,
-			setLedState_Variant1																						= 0x11,
-			setLedState_Variant2																						= 0x12,
-			getLedState_request																							= 0x32,
-			getLedState_confirm																							= 0x33,
-			setLedBrightness_request																				= 0x38,
-			setLedBrightness_Variant1																				= 0x11,
-			setLedBrightness_confirm																				= 0x39,
-			getLedBrightness_request																				= 0x3A,
-			getLedBrightness_confirm																				= 0x3B,
-			getButtonState_request																					= 0x40,
-			getButtonState_confirm																					= 0x41,
-			buttonState_indication																					= 0x42
-		};
+			noServiceOrReset												= 0x00,
+			setSystemSettings_request										= 0x10,
+			setSystemSettings_confirm										= 0x11,
+			getSystemSettings_request										= 0x12,
+			getSystemSettings_confirm										= 0x13,
+			getSystemState_request											= 0x18,
+			getSystemState_confirm											= 0x19,
+			systemState_indication											= 0x1A,
+			getSystemInfo_request											= 0x1C,
+			getSystemInfo_confirm											= 0x1D,
+			setLedState_request												= 0x30,
+			setLedState_confirm												= 0x31,
+			setLedState_Variant1											= 0x11,
+			setLedState_Variant2											= 0x12,
+			getLedState_request												= 0x32,
+			getLedState_confirm												= 0x33,
+			setLedBrightness_request										= 0x38,
+			setLedBrightness_Variant1										= 0x11,
+			setLedBrightness_confirm										= 0x39,
+			getLedBrightness_request										= 0x3A,
+			getLedBrightness_confirm										= 0x3B,
+			getButtonState_request											= 0x40,
+			getButtonState_confirm											= 0x41,
+			buttonState_indication											= 0x42};
 		enum _receiveAction : uint8_t {
-			receiveAndCallback																							= 0x01,
-			demandSpecificServiceRetryOnce																	= 0x02,
-			demandSpecificServiceFail																				= 0x04,
-			demandReset																											= 0x08
-		};
-		uint32_t										_ctsTimer = millis();
-		uint8_t											_rxBuffer[GNFS_RX_BUFFERSIZE];
-		uint8_t											_rxBufferPayloadCount;
-		uint8_t											_txBuffer[GNFS_TX_BUFFERSIZE];
+			receiveAndCallback												= 0x01,
+			demandSpecificServiceRetryOnce									= 0x02,
+			demandSpecificServiceFail										= 0x04,
+			demandReset														= 0x08};
+		uint32_t _ctsTimer = millis();
+		uint8_t _rxBuffer[GNFS_RX_BUFFERSIZE];
+		uint8_t _rxBufferPayloadCount;
+		uint8_t _txBuffer[GNFS_TX_BUFFERSIZE];
 		void _beginCtsPause();
 		void _beginSerial(uint32_t baudRate);
 		uint8_t _bitCount(uint8_t bit);
@@ -239,13 +245,17 @@ class gnFellerSwitch {
 		bool _tryReset() {return (_sendFrame(noServiceOrReset, 0));};
 		
 		// Services ----------------------------------------------------------------------------------------------------------
-		uint8_t											_brightness = 0xFF;
-		uint8_t											_buttonState = 0;
-		uint8_t											_ledState[6] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0};	// According to SetLedState Variant2 format
-		rawButtonHandlerCallback 		_rawButtonHandler;
+		uint8_t _brightness = 0xFF;
+		uint8_t _buttonState = 0;
+		uint8_t _ledState[6] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0};	// According to SetLedState Variant2 format
+		ledDisplayMode _ledDisplayMode = full;
+		uint32_t _ledDisplayModeTimer = 0;
+		uint8_t _ledDisplayModeOnSeconds = 0;
+		rawButtonHandlerCallback _rawButtonHandler;
 		singleButtonHandlerCallback _singleButtonHandler;
-		bool _updateLedBrightness();
-		bool _updateLedState();
+		void _updateLedBrightness();
+		void _updateLedState();
+		void _updateLedDisplayMode();
 		
 		// Diagnostics -------------------------------------------------------------------------------------------------------
 		uint8_t _switchFirmwareVersion;
@@ -253,17 +263,17 @@ class gnFellerSwitch {
 		uint8_t _switchPushButtonCount;
 		
 		// Error Handling ----------------------------------------------------------------------------------------------------
-		uint8_t											_errorCount = 0;
-		uint8_t											_errorCountSwitchController = 0;
-		gnFellerSwitchError					_lastError = errNone;
-		uint8_t											_lastErrorSwitchController = 0;
+		uint8_t _errorCount = 0;
+		uint8_t _errorCountSwitchController = 0;
+		gnFellerSwitchError _lastError = errNone;
+		uint8_t _lastErrorSwitchController = 0;
 		void _debugMorse(uint8_t pin, uint8_t pulseCount);
 		void _debugPrintHex(uint8_t value);
 		void _logError(gnFellerSwitchError error);
 		void _logSwitchControllerError(uint8_t error);
 		
 		// Flag handling -----------------------------------------------------------------------------------------------------
-		uint8_t											_flags = 0x00;	// Initialized, RequestUpdateForLedState, RequestUpdateForBrightness
+		uint8_t _flags = 0x00;	// Initialized, RequestUpdateForLedState, RequestUpdateForBrightness
 		void _clearFlag(uint8_t flag) {_writeFlag(flag, false);};
 		bool _readFlag(uint8_t flag) {return bitRead(_flags, flag);};
 		void _setFlag(uint8_t flag) {_writeFlag(flag, true);};
