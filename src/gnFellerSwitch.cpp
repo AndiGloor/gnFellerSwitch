@@ -6,6 +6,7 @@
  *  
  *  Tested with Arduino UNO and gnFellerTaster PCB (compatible with Arduino Uno).
  *  
+ *  2019-07-28	V1.3.2    Andreas Gloor            Bugfix LedDisplay: Not showing the Leds in case of rare Led-Updates
  *  2019-07-21	V1.3.1    Andreas Gloor            Implements: LedDisplay
  *  2018-09-08  V1.1.2    Andreas Gloor            Reset ErrorCount after Init
  *  2018-07-21  V1.1.1    Andreas Gloor            Initial Version
@@ -419,8 +420,9 @@ void gnFellerSwitch::_handleIndicationFrame(uint8_t indicationService) {
 	
 	switch (indicationService) {
 		case buttonState_indication:
-			if (_ledDisplayModeOnSeconds != 0) {																		// Reset the LedDisplayMode Timer and set Active-Flag (if enabled)
-				_setFlag(GNFS_FLAG_LedDisplayMode_ButtonPressed_TimerActive);
+			if (_ledDisplayModeOnSeconds != 0) {																		// Reset the LedDisplayMode Timer and set Flags (if any non-full-mode enabled)
+				_setFlag(GNFS_FLAG_LedDisplayMode_ButtonPressed_TimerActive);											// Set the Flag for active DisplayMode Timer
+				_setFlag(GNFS_FLAG_RequestUpdateForLedState);															// Set the Flag for LED Update
 				_ledDisplayModeTimer = millis();
 			}
 			if (_readFlag(GNFS_FLAG_ButtonHandler_Raw_Enabled)) {														// Invoke the RAW-Button-Handler callback (if attached)

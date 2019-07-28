@@ -6,6 +6,7 @@
  *  
  *  Tested with Arduino UNO and gnFellerTaster PCB (compatible with Arduino Uno).
  *  
+ *  2019-07-28	V1.3.2    Andreas Gloor            Bugfix LedDisplay: Not showing the Leds in case of rare Led-Updates
  *  2019-07-21	V1.3.1    Andreas Gloor            Implements: LedDisplay
  *  2018-09-08  V1.1.2    Andreas Gloor            Reset ErrorCount after Init
  *  2018-07-21  V1.1.1    Andreas Gloor            Initial Version
